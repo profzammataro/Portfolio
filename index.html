@@ -107,32 +107,55 @@
             line-height: 1.5;
         }
 
-        .delete-btn {
+        .card-actions {
             position: absolute;
             top: 10px;
             right: 10px;
-            background: rgba(255, 59, 48, 0.9);
-            color: white;
+            display: none;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .app-card.admin-mode .card-actions {
+            display: flex;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
             border: none;
             width: 35px;
             height: 35px;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 20px;
-            display: none;
+            font-size: 18px;
+            display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
-            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        .app-card.admin-mode .delete-btn {
-            display: flex;
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .edit-btn {
+            color: #667eea;
+        }
+
+        .edit-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .delete-btn {
+            color: #ff3b30;
         }
 
         .delete-btn:hover {
-            background: rgba(255, 59, 48, 1);
-            transform: scale(1.1);
+            background: #ff3b30;
+            color: white;
         }
 
         .modal {
@@ -290,7 +313,7 @@
 
     <div id="adminModal" class="modal">
         <div class="modal-content">
-            <h2 class="modal-header">Aggiungi Nuova App</h2>
+            <h2 class="modal-header" id="modalTitle">Aggiungi Nuova App</h2>
             <div id="errorMessage" class="error-message" style="display: none;"></div>
             <div id="passwordSection">
                 <div class="form-group">
@@ -351,6 +374,7 @@
         const ADMIN_PASSWORD = 'zammy';
         let apps = [];
         let isAdminMode = false;
+        let editingAppKey = null;
 
         // Carica le app da Firebase
         async function loadApps() {
@@ -395,7 +419,10 @@
 
             gallery.innerHTML = apps.map(app => `
                 <div class="app-card ${isAdminMode ? 'admin-mode' : ''}" onclick="openApp('${app.url}', event)">
-                    ${isAdminMode ? `<button class="delete-btn" onclick="deleteApp('${app.firebaseKey}', event)">×</button>` : ''}
+                    <div class="card-actions">
+                        <button class="action-btn edit-btn" onclick="editApp('${app.firebaseKey}', event)" title="Modifica">✏️</button>
+                        <button class="action-btn delete-btn" onclick="deleteApp('${app.firebaseKey}', event)" title="Elimina">🗑️</button>
+                    </div>
                     <img src="${app.image || `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Crect fill='%23667eea' width='300' height='200'/%3E%3Ctext fill='white' font-size='24' font-family='Arial' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3E${app.title.charAt(0)}%3C/text%3E%3C/svg%3E`}" 
                          alt="${app.title}" 
                          class="app-preview"
@@ -415,11 +442,34 @@
         }
 
         function openApp(url, event) {
-            // Non aprire l'app se si clicca sul pulsante di eliminazione
-            if (event && event.target.classList.contains('delete-btn')) {
+            // Non aprire l'app se si clicca sui pulsanti di azione
+            if (event && (event.target.classList.contains('action-btn') || 
+                          event.target.closest('.action-btn') || 
+                          event.target.closest('.card-actions'))) {
                 return;
             }
             window.open(url, '_blank');
+        }
+
+        function editApp(firebaseKey, event) {
+            event.stopPropagation();
+            
+            const app = apps.find(a => a.firebaseKey === firebaseKey);
+            if (!app) return;
+
+            editingAppKey = firebaseKey;
+            
+            document.getElementById('modalTitle').textContent = 'Modifica App';
+            document.getElementById('appTitle').value = app.title;
+            document.getElementById('appDescription').value = app.description;
+            document.getElementById('appUrl').value = app.url;
+            document.getElementById('appImage').value = app.image || '';
+            
+            document.getElementById('adminModal').classList.add('active');
+            document.getElementById('passwordSection').style.display = 'block';
+            document.getElementById('formSection').style.display = 'none';
+            document.getElementById('password').value = '';
+            hideError();
         }
 
         async function deleteApp(firebaseKey, event) {
@@ -439,10 +489,16 @@
         }
 
         function showAdminModal() {
+            editingAppKey = null;
+            document.getElementById('modalTitle').textContent = 'Aggiungi Nuova App';
             document.getElementById('adminModal').classList.add('active');
             document.getElementById('passwordSection').style.display = 'block';
             document.getElementById('formSection').style.display = 'none';
             document.getElementById('password').value = '';
+            document.getElementById('appTitle').value = '';
+            document.getElementById('appDescription').value = '';
+            document.getElementById('appUrl').value = '';
+            document.getElementById('appImage').value = '';
             hideError();
         }
 
@@ -452,6 +508,7 @@
             document.getElementById('appDescription').value = '';
             document.getElementById('appUrl').value = '';
             document.getElementById('appImage').value = '';
+            editingAppKey = null;
             isAdminMode = false;
             renderGallery();
             hideError();
@@ -480,17 +537,28 @@
                 return;
             }
 
-            const newApp = {
-                id: Date.now(),
+            const appData = {
                 title,
                 description,
                 url,
                 image,
-                createdAt: new Date().toISOString()
+                updatedAt: new Date().toISOString()
             };
 
             try {
-                await appsRef.push(newApp);
+                if (editingAppKey) {
+                    // Modifica app esistente
+                    const app = apps.find(a => a.firebaseKey === editingAppKey);
+                    appData.id = app.id;
+                    appData.createdAt = app.createdAt;
+                    await database.ref(`webapp-gallery-apps/${editingAppKey}`).set(appData);
+                } else {
+                    // Nuova app
+                    appData.id = Date.now();
+                    appData.createdAt = new Date().toISOString();
+                    await appsRef.push(appData);
+                }
+                
                 closeModal();
                 await loadApps();
             } catch (error) {
