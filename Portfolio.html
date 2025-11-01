@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Mie Web App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .admin-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .admin-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .app-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .app-preview {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .app-info {
+            padding: 20px;
+        }
+
+        .app-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .app-description {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 59, 48, 0.9);
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            z-index: 10;
+        }
+
+        .app-card.admin-mode .delete-btn {
+            display: flex;
+        }
+
+        .delete-btn:hover {
+            background: rgba(255, 59, 48, 1);
+            transform: scale(1.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: white;
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.7;
+        }
+
+        .empty-state-text {
+            font-size: 1.3em;
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            padding: 40px;
+            font-size: 1.2em;
+        }
+
+        .error-message {
+            background: rgba(255, 59, 48, 0.1);
+            border: 2px solid rgba(255, 59, 48, 0.5);
+            color: #ff3b30;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <button class="admin-btn" onclick="showAdminModal()">+ Aggiungi App</button>
+
+    <div class="container">
+        <header>
+            <h1>🚀 Le Mie Web App</h1>
+            <p class="subtitle">Raccolta delle mie applicazioni web</p>
+        </header>
+
+        <div id="loading" class="loading">Caricamento...</div>
+        <div id="gallery" class="gallery"></div>
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📱</div>
+            <div class="empty-state-text">Nessuna app ancora. Clicca su "Aggiungi App" per iniziare!</div>
+        </div>
+    </div>
+
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Aggiungi Nuova App</h2>
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            <div id="passwordSection">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Inserisci la password">
+                </div>
+                <div class="btn-group">
+                    <button class="btn-secondary" onclick="closeModal()">Annulla</button>
+                    <button class="btn-primary" onclick="verifyPassword()">Verifica</button>
+                </div>
+            </div>
+            <div id="formSection" style="display: none;">
+                <div class="form-group">
+                    <label for="appTitle">Titolo App</label>
+                    <input type="text" id="appTitle" placeholder="Es: Todo List Manager">
+                </div>
+                <div class="form-group">
+                    <label for="appDescription">Descrizione</label>
+                    <textarea id="appDescription" placeholder="Breve descrizione dell'app..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="appUrl">URL App</label>
+                    <input type="url" id="appUrl" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label for="appImage">URL Immagine Anteprima</label>
+                    <input type="url" id="appImage" placeholder="https://... (opzionale)">
+                </div>
+                <div class="btn-group">
+                    <button class="btn-secondary" onclick="closeModal()">Annulla</button>
+                    <button class="btn-primary" onclick="saveApp()">Salva App</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Configurazione Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDpcJBwUZJrVzidaToXH5bfvV8h7LtuMQU",
+            authDomain: "hopeboard-da041.firebaseapp.com",
+            databaseURL: "https://hopeboard-da041-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "hopeboard-da041",
+            storageBucket: "hopeboard-da041.firebasestorage.app",
+            messagingSenderId: "660906863783",
+            appId: "1:660906863783:web:ac031459c188c314bdbf82"
+        };
+
+        // Inizializza Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const appsRef = database.ref('webapp-gallery-apps');
+
+        const ADMIN_PASSWORD = 'zammy';
+        let apps = [];
+        let isAdminMode = false;
+
+        // Carica le app da Firebase
+        async function loadApps() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('gallery').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+
+            try {
+                const snapshot = await appsRef.once('value');
+                const data = snapshot.val();
+                
+                if (data) {
+                    apps = Object.keys(data).map(key => ({
+                        firebaseKey: key,
+                        ...data[key]
+                    }));
+                } else {
+                    apps = [];
+                }
+            } catch (error) {
+                console.error('Errore nel caricamento:', error);
+                showError('Errore nel caricamento delle app');
+                apps = [];
+            }
+
+            document.getElementById('loading').style.display = 'none';
+            renderGallery();
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            const emptyState = document.getElementById('emptyState');
+
+            if (apps.length === 0) {
+                gallery.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            gallery.style.display = 'grid';
+            emptyState.style.display = 'none';
+
+            gallery.innerHTML = apps.map(app => `
+                <div class="app-card ${isAdminMode ? 'admin-mode' : ''}" onclick="openApp('${app.url}', event)">
+                    ${isAdminMode ? `<button class="delete-btn" onclick="deleteApp('${app.firebaseKey}', event)">×</button>` : ''}
+                    <img src="${app.image || `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Crect fill='%23667eea' width='300' height='200'/%3E%3Ctext fill='white' font-size='24' font-family='Arial' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3E${app.title.charAt(0)}%3C/text%3E%3C/svg%3E`}" 
+                         alt="${app.title}" 
+                         class="app-preview"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'300\\' height=\\'200\\'%3E%3Crect fill=\\'%23667eea\\' width=\\'300\\' height=\\'200\\'/%3E%3Ctext fill=\\'white\\' font-size=\\'24\\' font-family=\\'Arial\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\'%3E${app.title.charAt(0)}%3C/text%3E%3C/svg%3E'">
+                    <div class="app-info">
+                        <div class="app-title">${escapeHtml(app.title)}</div>
+                        <div class="app-description">${escapeHtml(app.description)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function openApp(url, event) {
+            // Non aprire l'app se si clicca sul pulsante di eliminazione
+            if (event && event.target.classList.contains('delete-btn')) {
+                return;
+            }
+            window.open(url, '_blank');
+        }
+
+        async function deleteApp(firebaseKey, event) {
+            event.stopPropagation();
+            
+            if (!confirm('Sei sicuro di voler eliminare questa app?')) {
+                return;
+            }
+
+            try {
+                await database.ref(`webapp-gallery-apps/${firebaseKey}`).remove();
+                await loadApps();
+            } catch (error) {
+                console.error('Errore nell\'eliminazione:', error);
+                alert('Errore nell\'eliminazione dell\'app: ' + error.message);
+            }
+        }
+
+        function showAdminModal() {
+            document.getElementById('adminModal').classList.add('active');
+            document.getElementById('passwordSection').style.display = 'block';
+            document.getElementById('formSection').style.display = 'none';
+            document.getElementById('password').value = '';
+            hideError();
+        }
+
+        function closeModal() {
+            document.getElementById('adminModal').classList.remove('active');
+            document.getElementById('appTitle').value = '';
+            document.getElementById('appDescription').value = '';
+            document.getElementById('appUrl').value = '';
+            document.getElementById('appImage').value = '';
+            isAdminMode = false;
+            renderGallery();
+            hideError();
+        }
+
+        function verifyPassword() {
+            const password = document.getElementById('password').value;
+            if (password === ADMIN_PASSWORD) {
+                document.getElementById('passwordSection').style.display = 'none';
+                document.getElementById('formSection').style.display = 'block';
+                isAdminMode = true;
+                hideError();
+            } else {
+                showError('Password errata!');
+            }
+        }
+
+        async function saveApp() {
+            const title = document.getElementById('appTitle').value.trim();
+            const description = document.getElementById('appDescription').value.trim();
+            const url = document.getElementById('appUrl').value.trim();
+            const image = document.getElementById('appImage').value.trim();
+
+            if (!title || !description || !url) {
+                showError('Compila tutti i campi obbligatori!');
+                return;
+            }
+
+            const newApp = {
+                id: Date.now(),
+                title,
+                description,
+                url,
+                image,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                await appsRef.push(newApp);
+                closeModal();
+                await loadApps();
+            } catch (error) {
+                console.error('Errore nel salvataggio:', error);
+                showError('Errore nel salvataggio: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
+        }
+
+        // Chiudi modal cliccando fuori
+        document.getElementById('adminModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Gestione del tasto Enter per la password
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyPassword();
+            }
+        });
+
+        // Carica le app all'avvio
+        loadApps();
+
+        // Ricarica automaticamente quando ci sono modifiche nel database
+        appsRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                apps = Object.keys(data).map(key => ({
+                    firebaseKey: key,
+                    ...data[key]
+                }));
+            } else {
+                apps = [];
+            }
+            
+            if (document.getElementById('loading').style.display === 'none') {
+                renderGallery();
+            }
+        });
+    </script>
+</body>
+</html>
