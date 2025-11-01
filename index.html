@@ -40,10 +40,16 @@
             opacity: 0.9;
         }
 
-        .admin-btn {
+        .admin-controls {
             position: fixed;
             top: 20px;
             right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .admin-btn {
             background: rgba(255,255,255,0.2);
             color: white;
             border: 2px solid white;
@@ -53,12 +59,19 @@
             font-size: 16px;
             backdrop-filter: blur(10px);
             transition: all 0.3s;
-            z-index: 100;
         }
 
         .admin-btn:hover {
             background: rgba(255,255,255,0.3);
             transform: scale(1.05);
+        }
+
+        .edit-mode-btn {
+            background: rgba(102, 126, 234, 0.9);
+        }
+
+        .edit-mode-btn.active {
+            background: rgba(255, 59, 48, 0.9);
         }
 
         .gallery {
@@ -112,50 +125,40 @@
             top: 10px;
             right: 10px;
             display: none;
+            flex-direction: column;
             gap: 8px;
             z-index: 10;
         }
 
-        .app-card.admin-mode .card-actions {
+        .app-card.edit-mode .card-actions {
             display: flex;
         }
 
         .action-btn {
             background: rgba(255, 255, 255, 0.95);
-            color: #333;
             border: none;
-            width: 35px;
-            height: 35px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         .action-btn:hover {
-            transform: scale(1.1);
-        }
-
-        .edit-btn {
-            color: #667eea;
+            transform: scale(1.15);
         }
 
         .edit-btn:hover {
             background: #667eea;
-            color: white;
-        }
-
-        .delete-btn {
-            color: #ff3b30;
         }
 
         .delete-btn:hover {
             background: #ff3b30;
-            color: white;
         }
 
         .modal {
@@ -295,7 +298,10 @@
     </style>
 </head>
 <body>
-    <button class="admin-btn" onclick="showAdminModal()">+ Aggiungi App</button>
+    <div class="admin-controls">
+        <button class="admin-btn edit-mode-btn" id="editModeBtn" onclick="toggleEditMode()">✏️ Modalità Modifica</button>
+        <button class="admin-btn" onclick="showAddModal()">+ Aggiungi App</button>
+    </div>
 
     <div class="container">
         <header>
@@ -311,17 +317,34 @@
         </div>
     </div>
 
-    <div id="adminModal" class="modal">
+    <!-- Modal Password per Modalità Modifica -->
+    <div id="editPasswordModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Modalità Modifica</h2>
+            <div id="editPasswordError" class="error-message" style="display: none;"></div>
+            <div class="form-group">
+                <label for="editPassword">Password</label>
+                <input type="password" id="editPassword" placeholder="Inserisci la password">
+            </div>
+            <div class="btn-group">
+                <button class="btn-secondary" onclick="closeEditPasswordModal()">Annulla</button>
+                <button class="btn-primary" onclick="verifyEditPassword()">Attiva</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per Aggiungi/Modifica App -->
+    <div id="appModal" class="modal">
         <div class="modal-content">
             <h2 class="modal-header" id="modalTitle">Aggiungi Nuova App</h2>
-            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            <div id="appModalError" class="error-message" style="display: none;"></div>
             <div id="passwordSection">
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" placeholder="Inserisci la password">
                 </div>
                 <div class="btn-group">
-                    <button class="btn-secondary" onclick="closeModal()">Annulla</button>
+                    <button class="btn-secondary" onclick="closeAppModal()">Annulla</button>
                     <button class="btn-primary" onclick="verifyPassword()">Verifica</button>
                 </div>
             </div>
@@ -343,7 +366,7 @@
                     <input type="url" id="appImage" placeholder="https://... (opzionale)">
                 </div>
                 <div class="btn-group">
-                    <button class="btn-secondary" onclick="closeModal()">Annulla</button>
+                    <button class="btn-secondary" onclick="closeAppModal()">Annulla</button>
                     <button class="btn-primary" onclick="saveApp()">Salva App</button>
                 </div>
             </div>
@@ -373,7 +396,7 @@
 
         const ADMIN_PASSWORD = 'zammy';
         let apps = [];
-        let isAdminMode = false;
+        let isEditMode = false;
         let editingAppKey = null;
 
         // Carica le app da Firebase
@@ -396,7 +419,6 @@
                 }
             } catch (error) {
                 console.error('Errore nel caricamento:', error);
-                showError('Errore nel caricamento delle app');
                 apps = [];
             }
 
@@ -418,7 +440,7 @@
             emptyState.style.display = 'none';
 
             gallery.innerHTML = apps.map(app => `
-                <div class="app-card ${isAdminMode ? 'admin-mode' : ''}" onclick="openApp('${app.url}', event)">
+                <div class="app-card ${isEditMode ? 'edit-mode' : ''}" onclick="openApp('${app.url}', event)">
                     <div class="card-actions">
                         <button class="action-btn edit-btn" onclick="editApp('${app.firebaseKey}', event)" title="Modifica">✏️</button>
                         <button class="action-btn delete-btn" onclick="deleteApp('${app.firebaseKey}', event)" title="Elimina">🗑️</button>
@@ -448,7 +470,42 @@
                           event.target.closest('.card-actions'))) {
                 return;
             }
-            window.open(url, '_blank');
+            if (!isEditMode) {
+                window.open(url, '_blank');
+            }
+        }
+
+        function toggleEditMode() {
+            if (!isEditMode) {
+                // Attiva modalità modifica - richiedi password
+                document.getElementById('editPasswordModal').classList.add('active');
+                document.getElementById('editPassword').value = '';
+                document.getElementById('editPasswordError').style.display = 'none';
+            } else {
+                // Disattiva modalità modifica
+                isEditMode = false;
+                document.getElementById('editModeBtn').classList.remove('active');
+                document.getElementById('editModeBtn').textContent = '✏️ Modalità Modifica';
+                renderGallery();
+            }
+        }
+
+        function closeEditPasswordModal() {
+            document.getElementById('editPasswordModal').classList.remove('active');
+        }
+
+        function verifyEditPassword() {
+            const password = document.getElementById('editPassword').value;
+            if (password === ADMIN_PASSWORD) {
+                isEditMode = true;
+                document.getElementById('editModeBtn').classList.add('active');
+                document.getElementById('editModeBtn').textContent = '❌ Disattiva Modifica';
+                closeEditPasswordModal();
+                renderGallery();
+            } else {
+                document.getElementById('editPasswordError').textContent = 'Password errata!';
+                document.getElementById('editPasswordError').style.display = 'block';
+            }
         }
 
         function editApp(firebaseKey, event) {
@@ -465,11 +522,11 @@
             document.getElementById('appUrl').value = app.url;
             document.getElementById('appImage').value = app.image || '';
             
-            document.getElementById('adminModal').classList.add('active');
+            document.getElementById('appModal').classList.add('active');
             document.getElementById('passwordSection').style.display = 'block';
             document.getElementById('formSection').style.display = 'none';
             document.getElementById('password').value = '';
-            hideError();
+            document.getElementById('appModalError').style.display = 'none';
         }
 
         async function deleteApp(firebaseKey, event) {
@@ -488,10 +545,10 @@
             }
         }
 
-        function showAdminModal() {
+        function showAddModal() {
             editingAppKey = null;
             document.getElementById('modalTitle').textContent = 'Aggiungi Nuova App';
-            document.getElementById('adminModal').classList.add('active');
+            document.getElementById('appModal').classList.add('active');
             document.getElementById('passwordSection').style.display = 'block';
             document.getElementById('formSection').style.display = 'none';
             document.getElementById('password').value = '';
@@ -499,19 +556,16 @@
             document.getElementById('appDescription').value = '';
             document.getElementById('appUrl').value = '';
             document.getElementById('appImage').value = '';
-            hideError();
+            document.getElementById('appModalError').style.display = 'none';
         }
 
-        function closeModal() {
-            document.getElementById('adminModal').classList.remove('active');
+        function closeAppModal() {
+            document.getElementById('appModal').classList.remove('active');
             document.getElementById('appTitle').value = '';
             document.getElementById('appDescription').value = '';
             document.getElementById('appUrl').value = '';
             document.getElementById('appImage').value = '';
             editingAppKey = null;
-            isAdminMode = false;
-            renderGallery();
-            hideError();
         }
 
         function verifyPassword() {
@@ -519,10 +573,10 @@
             if (password === ADMIN_PASSWORD) {
                 document.getElementById('passwordSection').style.display = 'none';
                 document.getElementById('formSection').style.display = 'block';
-                isAdminMode = true;
-                hideError();
+                document.getElementById('appModalError').style.display = 'none';
             } else {
-                showError('Password errata!');
+                document.getElementById('appModalError').textContent = 'Password errata!';
+                document.getElementById('appModalError').style.display = 'block';
             }
         }
 
@@ -533,7 +587,8 @@
             const image = document.getElementById('appImage').value.trim();
 
             if (!title || !description || !url) {
-                showError('Compila tutti i campi obbligatori!');
+                document.getElementById('appModalError').textContent = 'Compila tutti i campi obbligatori!';
+                document.getElementById('appModalError').style.display = 'block';
                 return;
             }
 
@@ -559,36 +614,38 @@
                     await appsRef.push(appData);
                 }
                 
-                closeModal();
+                closeAppModal();
                 await loadApps();
             } catch (error) {
                 console.error('Errore nel salvataggio:', error);
-                showError('Errore nel salvataggio: ' + error.message);
+                document.getElementById('appModalError').textContent = 'Errore nel salvataggio: ' + error.message;
+                document.getElementById('appModalError').style.display = 'block';
             }
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        function hideError() {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.style.display = 'none';
         }
 
         // Chiudi modal cliccando fuori
-        document.getElementById('adminModal').addEventListener('click', function(e) {
+        document.getElementById('appModal').addEventListener('click', function(e) {
             if (e.target === this) {
-                closeModal();
+                closeAppModal();
             }
         });
 
-        // Gestione del tasto Enter per la password
+        document.getElementById('editPasswordModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditPasswordModal();
+            }
+        });
+
+        // Gestione del tasto Enter per le password
         document.getElementById('password').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 verifyPassword();
+            }
+        });
+
+        document.getElementById('editPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyEditPassword();
             }
         });
 
